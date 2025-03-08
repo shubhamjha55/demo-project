@@ -38,7 +38,7 @@ public class FileLogService {
     }
 
     @Scheduled(fixedDelay = 100, initialDelay = 10000)
-    public void sendRecentUpdates() throws IOException {
+    public synchronized void sendRecentUpdates() throws IOException {
         List<String> recentUpdates = new ArrayList<>();
         long fileLength = randomAccessFile.length();
         randomAccessFile.seek(offset);
@@ -53,7 +53,7 @@ public class FileLogService {
         offset = fileLength;
     }
 
-    public List<String> initialize() throws IOException {
+    public synchronized List<String> initialize() throws IOException {
         List<String> lastTenLines = new ArrayList<>();
 
         long fileLength = randomAccessFile.length();
