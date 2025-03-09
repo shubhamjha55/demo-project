@@ -5,16 +5,22 @@ import com.demo.demo.Service.FileLogService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.SendTo;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Collections;
-import java.util.List;
+import java.security.Principal;
+import java.util.*;
 
-@RestController
-@RequestMapping("/logs")
+@Controller
 public class FileLogController {
+
+    @Autowired
+    private SimpMessagingTemplate simpMessagingTemplate;
 
     private FileLogService fileLogService;
 
@@ -23,15 +29,9 @@ public class FileLogController {
         this.fileLogService = fileLogService;
     }
 
-    @GetMapping("/initial")
-    public ResponseEntity<LogResponse> getLast10Lines() {
-        try {
-            List<String> last10Logs = fileLogService.initialize();
-            return ResponseEntity.ok(new LogResponse(last10Logs));
-        }
-        catch (Exception exception) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new LogResponse(Collections.emptyList()));
-        }
+    @MessageMapping("/subscribe")
+    public void sendInitialLogs(Principal principal) {
+        String user = principal.getName();
+        simpMessagingTemplate.convertAndSendToUser(user, "/last/logs", fileLogService.getLast10Logs());
     }
 }

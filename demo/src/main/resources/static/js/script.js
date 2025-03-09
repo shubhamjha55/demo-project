@@ -2,7 +2,7 @@ let socket = new SockJS("/ws-logs");
 let client = Stomp.over(socket);
 
 client.connect({}, function(frame) {
-    console.log("!!Connected");
+    console.log("Connected" + frame);
 
     client.subscribe("/last/logs", function(data) {
         let logs = JSON.parse(data.body);
@@ -14,15 +14,7 @@ client.connect({}, function(frame) {
     });
 
     // Fetch initial logs after WebSocket connection is established
-    fetch('/logs/initial')
-        .then(response => response.json())  // Parse the JSON response
-        .then(data => {
-            console.log("Initial logs request successful", data);
-            if (data.logs && Array.isArray(data.logs)) {
-                data.logs.forEach(line => print(line));
-            }
-        })
-        .catch(error => console.error("Error:", error));
+    client.send("/app/subscribe", {}, {});
 });
 
 function print(message) {
