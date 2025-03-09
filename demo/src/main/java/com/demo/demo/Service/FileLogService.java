@@ -1,25 +1,29 @@
 package com.demo.demo.Service;
 
-import jakarta.annotation.PreDestroy;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+
+import jakarta.annotation.PreDestroy;
 
 @Service
 public class FileLogService {
     private final static String FILE_NAME = "logs.txt";
     private final static String READ_MODE = "r";
-    public static final String DESTINATION = "/last/logs";
+    private final static  String DESTINATION = "/last/logs";
     private long offset;
 
+    private final Queue<String> last10Logs = new LinkedList<>();
     private final RandomAccessFile randomAccessFile;
 
     @Autowired
@@ -35,25 +39,38 @@ public class FileLogService {
 
         randomAccessFile = new RandomAccessFile(file, READ_MODE);
         offset = randomAccessFile.length();
+        initialize();
     }
 
     @Scheduled(fixedDelay = 100, initialDelay = 10000)
-    public synchronized void sendRecentUpdates() throws IOException {
+    public void sendRecentUpdates() throws IOException {
         List<String> recentUpdates = new ArrayList<>();
         long fileLength = randomAccessFile.length();
         randomAccessFile.seek(offset);
 
         while(randomAccessFile.getFilePointer() < fileLength) {
             String currentLine = randomAccessFile.readLine();
+            if(currentLine.trim().isEmpty()) {
+                continue;
+            }
             recentUpdates.add((currentLine));
+
+            last10Logs.offer(currentLine);
+            if(last10Logs.size() > 10) {
+                last10Logs.poll();
+            }
         }
-        if(recentUpdates.size() > 0) {
+        if(!recentUpdates.isEmpty()) {
             simpMessagingTemplate.convertAndSend(DESTINATION, recentUpdates);
         }
         offset = fileLength;
     }
 
-    public synchronized List<String> initialize() throws IOException {
+    public List<String> getLast10Logs() {
+        return new ArrayList<>(last10Logs);
+    }
+
+    private synchronized void initialize() throws IOException {
         List<String> lastTenLines = new ArrayList<>();
 
         long fileLength = randomAccessFile.length();
@@ -84,7 +101,7 @@ public class FileLogService {
         }
         offset = fileLength;
         Collections.reverse(lastTenLines);
-        return lastTenLines;
+        last10Logs.addAll(lastTenLines);
     }
 
     @PreDestroy

@@ -26,7 +26,7 @@ public class FileLogController {
     @GetMapping("/initial")
     public ResponseEntity<LogResponse> getLast10Lines() {
         try {
-            List<String> last10Logs = fileLogService.initialize();
+            List<String> last10Logs = fileLogService.getLast10Logs();
             return ResponseEntity.ok(new LogResponse(last10Logs));
         }
         catch (Exception exception) {
